@@ -9,7 +9,7 @@ def evaluate(rows,context):
     if accepted & rejected: raise DomainError("LINEAGE_OVERLAP","同一来源行被重复裁决")
     m={"accepted_inputs":len(accepted),"quarantine_inputs":len(rejected),"output_records":len(rows)}
     if intake:
-        excluded=intake["duplicate"]+intake["blank"]+intake["repeated_headers"]
+        excluded=intake["blank"]+intake["repeated_headers"]
         m.update(input=intake["input"],excluded=excluded,balanced=intake["input"]==len(accepted)+len(rejected)+excluded)
     else:m.update(input=len(accepted)+len(rejected),excluded=0,balanced=True)
     output=[]

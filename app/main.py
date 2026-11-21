@@ -1,4 +1,4 @@
-from flask import Flask,jsonify,request,send_from_directory
+from flask import Flask,jsonify,request,send_file,send_from_directory
 from app.config import ROOT,DATA_DIR,MODULES
 from app.errors import DomainError
 from app import pipeline,store
@@ -45,6 +45,18 @@ def create_app():
         from app.archive import build_archive
         run=store.get(run_id)
         return application.response_class(build_archive(run),mimetype="text/csv",headers={"Content-Disposition":'attachment; filename="evidence.csv"'})
+    @application.post("/api/runs/<run_id>/publish")
+    def publish(run_id):
+        return store.publish(run_id)
+    @application.get("/api/published")
+    def published_run():
+        run=store.published()
+        if not run: raise DomainError("NO_PUBLISHED","尚无已发布批次",404)
+        return run
+    @application.get("/api/runs/<run_id>/raw")
+    def raw_file(run_id):
+        sha,path=store.raw_path(run_id)
+        return send_file(path,mimetype="text/csv",download_name=f"raw-{sha[:12]}.csv",as_attachment=True)
     for index,(slug,title) in enumerate(MODULES,1):
         module=importlib.import_module(f"app.modules.m{index}_{slug}.handler")
         application.register_blueprint(module.bp)

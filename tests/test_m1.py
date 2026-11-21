@@ -13,8 +13,10 @@ def test_bad_columns_real_sample(sample):
     "TRAP-05"
     assert any(r["reason"]=="BAD_COLUMNS" for r in evaluate(sample)["quarantine"])
 def test_duplicate_conflict_real_sample(sample):
-    "TRAP-14"
-    assert any(r["reason"]=="DUPLICATE_CONFLICT" for r in evaluate(sample)["quarantine"])
+    "TRAP-14 同流水号不同值：不同物理事件应独立保留；同一物理事件异内容才隔离"
+    r=evaluate(sample)
+    assert not any(x["reason"]=="DUPLICATE_CONFLICT" for x in r["quarantine"])
+    assert any(x["reason"]=="EVENT_CONFLICT" for x in r["quarantine"])
 def test_identifier_preserved_real_sample(sample):
     "TRAP-08"
     r=evaluate(sample)["rows"][0];assert r[COLUMNS[0]].startswith("00")
@@ -25,7 +27,9 @@ def test_three_empty_states():
         assert e.value.code==code
 def test_intake_conservation_real_sample(sample):
     r=evaluate(sample);m=r["metrics"]
-    assert m["input"]==m["accepted"]+m["quarantine"]+m["duplicate"]+m["blank"]+m["repeated_headers"]
+    # 幂等重试/补传行并入采纳来源行，任何输入行都不被丢弃
+    assert m["input"]==m["accepted"]+m["quarantine"]+m["blank"]+m["repeated_headers"]
+    assert m["balanced"] is True and m["accepted"]==sum(len(x["_sources"]) for x in r["rows"])
 def test_quoted_newline_is_one_record(sample):
     "TRAP-03"
     r=evaluate(sample);assert any("\n" in str(x) for row in r["rows"] for x in row.values())

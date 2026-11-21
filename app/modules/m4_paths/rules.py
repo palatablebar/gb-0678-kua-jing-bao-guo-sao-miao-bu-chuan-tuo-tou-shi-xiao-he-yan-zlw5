@@ -6,7 +6,7 @@ def evaluate(rows,context):
     groups=defaultdict(list);good=[];bad=[]
     for r in rows:groups[r["parcel"]].append(r)
     for parcel,events in sorted(groups.items()):
-        events=sorted(events,key=lambda r:(instant(r["event_utc"]),PRIORITY[r["node"]],r["scan_id"]))
+        events=sorted(events,key=lambda r:(instant(r["event_utc"]),PRIORITY[r["node"]],r["event_uid"]))
         seen={};valid=[];last=-1
         for e in events:
             time=e["event_utc"]

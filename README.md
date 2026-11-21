@@ -25,6 +25,8 @@ docker compose exec -T app pytest -q
 
 以事件发生时刻重建路径，补传不改变既有妥投时间；承诺时钟按目的地节假日停表。
 
+扫描事件身份：`scan_id` 是终端每日复位的本地流水号，只作溯源别名、不参与判重；事件规范身份为 `包裹+节点+发生时刻`，派生稳定 `event_uid`。同身份且载荷一致的跨仓补传/重试幂等合并（来源行与原号全保留），同身份异内容隔离 `EVENT_CONFLICT`，同号不同事件各自独立。M1 页面与 `/api/scans` 的 `identity` 字段说明同号关系与同事件归并；时效与赔付读取同一事件全集。批次发布走单事务指针，失败保留旧版；原始字节按 sha256 内容寻址只写不删（`/api/runs/<id>/raw`）。
+
 ## 演示
 
 1. 打开首页，核对当次计算、差异和隔离原因。
@@ -34,9 +36,9 @@ docker compose exec -T app pytest -q
 
 ## 输入与输出
 
-输入列见 `docs/DATA-DICTIONARY.md`。项目包含dirty.csv、clean.csv、legacy.csv，统一走实际导入路径。上传限制4MB，拒绝不带时区的时间。业务键按字符串保留，Decimal参与计算，空值不会当零。
+输入列见 `docs/DATA-DICTIONARY.md`。项目包含dirty.csv、clean.csv、legacy.csv、crosswarehouse.csv，统一走实际导入路径。上传限制4MB，拒绝不带时区的时间。业务键按字符串保留，Decimal参与计算，空值不会当零。
 
-`POST /api/runs` 接收sample或csv；`GET /api/runs`返回历史批次；`POST /api/runs/<id>/review`需要version与decision；`GET /api/runs/<id>/archive`返回唯一证据导出。
+`POST /api/runs` 接收sample或csv；`GET /api/runs`返回历史批次；`POST /api/runs/<id>/review`需要version与decision；`GET /api/runs/<id>/archive`返回唯一证据导出；`POST /api/runs/<id>/publish`事务发布、`GET /api/published`取已发布批次、`GET /api/runs/<id>/raw`取回原始字节。
 
 ## 范围
 

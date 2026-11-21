@@ -23,7 +23,11 @@
 | TRAP-03 | 带引号换行 | 拆成两条 | csv逻辑行 | `app/modules/m1_scans/rules.py` | `tests/test_m1.py::test_quoted_newline_is_one_record` |
 | TRAP-05 | 列数不匹配 | 静默错列 | 隔离原行 | `app/modules/m1_scans/rules.py` | `tests/test_m1.py::test_bad_columns_real_sample` |
 | TRAP-08 | 前导零ID | 编码变形 | 全程字符串 | `app/modules/m1_scans/rules.py` | `tests/test_m1.py::test_identifier_preserved_real_sample` |
-| TRAP-14 | 重复键冲突 | 后写覆盖 | 保留首条并隔离冲突行 | `app/modules/m1_scans/rules.py` | `tests/test_m1.py::test_duplicate_conflict_real_sample` |
+| TRAP-14 | 重复键冲突 | 后写覆盖 | 物理身份三要素定 event_uid；同号不同事件独立保留，同身份异内容隔离 EVENT_CONFLICT | `app/modules/m1_scans/rules.py` | `tests/test_identity.py` |
+| TRAP-27 | 流水号每日复位 | 按 scan_id 判重吞掉真实扫描 | scan_id 降为溯源别名，事件身份=包裹+节点+发生时刻 | `app/modules/m1_scans/rules.py` | `tests/test_identity.py::test_same_serial_different_events_both_kept` |
+| TRAP-28 | 跨仓补传换号 | 当成新事件重复入账 | 同 event_uid 且载荷一致幂等合并，来源行/原号全保留 | `app/modules/m1_scans/rules.py` | `tests/test_identity.py::test_cross_warehouse_retransmission_merges_into_one_event` |
+| TRAP-29 | 发布失败污染线上版 | 直接覆盖已发布批次 | 单事务切换 published 指针，失败回滚旧版 | `app/store.py` | `tests/test_publish.py::test_publish_then_failed_publish_keeps_previous_batch` |
+| TRAP-30 | 原件被清理/覆盖 | 重跑后无法核对 | sha256 内容寻址落盘，只写不删 | `app/store.py` | `tests/test_publish.py::test_raw_bytes_preserved_content_addressed` |
 | TRAP-18 | 空态三态 | 一律成功 | 分别错误码 | `app/modules/m1_scans/rules.py` | `tests/test_m1.py::test_three_empty_states` |
 | TRAP-26 | 旧版本提交 | 覆盖新结果 | 版本条件更新 | `app/store.py` | `tests/test_e2e.py::test_stale_review_409` |
 | TRAP-06 | 全角时限 | 数字转换失败 | Decimal归一 | `app/values.py` | `tests/test_m3.py::test_numeric_normalization` |
@@ -35,7 +39,7 @@
 
 ## 对账规则
 
-输入原始逻辑行=最终采纳来源行+隔离来源行+重复行+空白行+分段表头。派生记录用_sources保存完整来源，因此分组不丢行。业务预期合计与上游申报合计之差等于逐行差异之和。结果按输入摘要、规则版本及参数产生唯一批次，事务写入；同源重跑只复用已有批次。
+输入原始逻辑行=最终采纳来源行（含幂等合并的补传/重试行）+隔离来源行+空白行+分段表头。派生记录用_sources保存完整来源，因此分组不丢行；同身份合并记录用scan_serials保存全部原流水号。业务预期合计与上游申报合计之差等于逐行差异之和。结果按输入摘要、规则版本及参数产生唯一批次，事务写入；同源重跑只复用已有批次与同一份 raw 原件。已发布指针在单事务内切换，发布失败保留旧版批次。
 
 ## 已知不覆盖
 

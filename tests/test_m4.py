@@ -1,6 +1,9 @@
 from app.modules.m4_paths.rules import evaluate
+from app.modules.m1_scans.rules import event_uid
 from app.pipeline import calculate
-def scan(id,node,at):return {"scan_id":str(id),"parcel":"01","node":node,"event_utc":at,"received_utc":"2026-11-09T00:00:00Z","zone":"Asia/Tokyo","destination":"JP","promised_hours":"24","declared_value":"200","reported":"0","_sources":[id]}
+def scan(id,node,at):
+    row={"scan_id":str(id),"parcel":"01","node":node,"event_time":at,"event_utc":at,"received_utc":"2026-11-09T00:00:00Z","zone":"Asia/Tokyo","destination":"JP","promised_hours":"24","declared_value":"200","reported":"0","_sources":[id]}
+    row["event_uid"]=event_uid((row["parcel"],row["node"],at));return row
 def test_real_eight_parcels(result): assert result["stages"][3]["metrics"]["parcels"]==8
 def test_real_regression_isolated(result): assert result["stages"][3]["quarantine"][0]["reason"]=="PATH_REGRESSION"
 def test_late_upload_event_time_decides():
@@ -12,4 +15,7 @@ def test_order_independent():
     rows=[scan(1,"ACCEPT","2026-11-02T00:00:00Z"),scan(2,"DELIVERED","2026-11-04T00:00:00Z")];assert evaluate(rows,{})==evaluate(list(reversed(rows)),{})
 def test_simultaneous_conflict():
     r=evaluate([scan(1,"ACCEPT","2026-11-02T00:00:00Z"),scan(2,"DEPART","2026-11-02T00:00:00Z")],{});assert r["quarantine"][0]["reason"]=="SIMULTANEOUS_CONFLICT"
-def test_real_group_lineage(result): assert all(len(r["_sources"])==4 for r in result["stages"][3]["rows"])
+def test_real_group_lineage(result):
+    counts={r["parcel"]:len(r["_sources"]) for r in result["stages"][3]["rows"]}
+    assert counts["0001"]==6  # 来源36幂等合并 + 来源43同号不同事件独立保留
+    assert all(n==4 for p,n in counts.items() if p!="0001")
